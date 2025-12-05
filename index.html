@@ -230,7 +230,7 @@
             { id: 4, name: "Piercing Rounds I", desc: "+2 Projectile Pierce", effect: p => p.pierce += 2, rarity: 1, weaponFilter: ['ranged'] },
             { id: 5, name: "Critical Eye I", desc: "+5% Critical Hit Chance", effect: p => p.critChance += 0.05, rarity: 1 },
             { id: 6, name: "Crit Multiplier I", desc: "+25% Critical Hit Damage", effect: p => p.critDamageMultiplier += 0.25, rarity: 1 },
-            { id: 7, name: "Extra Ammo", desc: "+1 Projectile Count (Shotgun effect)", effect: p => p.projectileCount += 1, rarity: 2, weaponFilter: ['ranged'] },
+            { id: 7, name: "Extra Ammo", desc: "+1 Projectile Count (Shotgun effect)", effect: p => p.projectileCount += 1, rarity: 1, weaponFilter: ['ranged'] },
             { id: 8, name: "Knockback Rounds", desc: "+50% Enemy Knockback", effect: p => p.knockback *= 1.5, rarity: 2 },
             { id: 9, name: "Homing System", desc: "Projectiles slightly home to nearest enemy", effect: p => p.homing = true, rarity: 3, weaponFilter: ['ranged'] },
             { id: 10, name: "Lethal Force", desc: "+20% Damage to Burning/Poisoned", effect: p => p.dotBonusDamage += 0.2, rarity: 3 },
@@ -246,12 +246,12 @@
             { id: 20, name: "Emergency Dash", desc: "+1 Dash Charge", effect: p => p.dashCharges += 1, rarity: 3 },
             { id: 21, name: "Flame Core I", desc: "Adds +5 Fire Damage (DOT)", effect: p => p.fireDamage += 5, rarity: 1 },
             { id: 22, name: "Venom Strike I", desc: "Adds +5 Poison Damage (DOT)", effect: p => p.poisonDamage += 5, rarity: 1 },
-            { id: 23, name: "Cryo Rounds", desc: "Projectiles apply Slow (1s duration)", effect: p => p.slowDuration += 1, rarity: 2 },
+            { id: 23, name: "Cryo Rounds", desc: "Projectiles apply Slow (2s duration)", effect: p => p.slowDuration += 2, rarity: 2 },
             { id: 24, name: "DOT Amplifier", desc: "+20% Global DOT Tick Rate", effect: p => p.dotTickRateMultiplier *= 1.2, rarity: 2 },
             { id: 25, name: "Money Magnet", desc: "+20% Coin Magnet Radius", effect: p => p.coinMagnetRadius *= 1.2, rarity: 1 },
             { id: 26, name: "Treasure Hunter", desc: "+10% Score/Coin Gain", effect: p => p.coinMultiplier += 0.1, rarity: 2 },
-            { id: 27, name: "Area Blast", desc: "+10 Projectile Area of Effect (AOE) radius", effect: p => p.aoeRadius += 10, rarity: 2 },
-            { id: 28, name: "Double Tap", desc: "+10% Chance for Double Attack", effect: p => p.doubleAttackChance += 0.1, rarity: 3 },
+            { id: 27, name: "Area Blast", desc: "+3 Projectile Area of Effect (AOE) radius", effect: p => p.aoeRadius += 3, rarity: 1 },
+            { id: 28, name: "Double Tap", desc: "+25% Chance for Double Attack", effect: p => p.doubleAttackChance += 0.25, rarity: 3 },
             { id: 29, name: "Projectile Lifespan", desc: "+20% Projectile Lifespan", effect: p => p.projectileLifespanMultiplier *= 1.2, rarity: 1 },
             { id: 30, name: "Rage Mode", desc: "+5% Damage for every 10 Health Missing", effect: p => p.rageDamageBonus += 0.05, rarity: 3 },
             { id: 31, name: "Sword Length I", desc: "+20% Melee Range", effect: p => p.meleeRange *= 1.2, rarity: 1, weaponFilter: ['melee'] },
@@ -282,12 +282,12 @@
             { id: 52, name: "DOT Mitigation", desc: "-10% DOT Damage taken", effect: p => p.dotMitigation = (p.dotMitigation || 0) + 0.1, rarity: 2 },
             { id: 53, name: "Executioner", desc: "+20% Damage to enemies below 20% Health", effect: p => p.executionerBonus = (p.executionerBonus || 0) + 0.2, rarity: 3 },
             { id: 54, name: "Survivalist", desc: "+50% Health Regen when below 50% Max Health", effect: p => p.lowHealthRegenBonus = (p.lowHealthRegenBonus || 0) + 0.5, rarity: 2 },
-            { id: 55, name: "Relentless", desc: "+10% Speed for every 20% Health Missing", effect: p => p.rageSpeedBonus = (p.rageSpeedBonus || 0) + 0.1, rarity: 3 },
+            { id: 55, name: "Relentless", desc: "+10% Speed for every 10% Health Missing", effect: p => p.rageSpeedBonus = (p.rageSpeedBonus || 0) + 0.1, rarity: 3 },
 
             // Ranged Specific (56-65)
             { id: 56, name: "Bullet Velocity I", desc: "+20% Projectile Speed", effect: p => p.projectileSpeed *= 1.2, rarity: 1, weaponFilter: ['ranged'] },
             { id: 57, name: "Bullet Size I", desc: "+2 Projectile Radius", effect: p => p.projectileRadius += 2, rarity: 2, weaponFilter: ['ranged'] },
-            { id: 58, name: "Ricochet I", desc: "Projectiles ricochet 1 time", effect: p => p.maxRicochets = Math.max(1, p.maxRicochets + 1), rarity: 3, weaponFilter: ['ranged'] },
+            { id: 58, name: "Ricochet I", desc: "Projectiles ricochet 1 time", effect: p => p.maxRicochets = Math.max(1, p.maxRicochets + 1), rarity: 2, weaponFilter: ['ranged'] },
             { id: 59, name: "Scatter Shot", desc: "+2 Projectiles, -20% Damage", effect: p => { p.projectileCount += 2; p.damage *= 0.8; }, rarity: 2, weaponFilter: ['ranged'] },
             { id: 60, name: "Anti-Armor", desc: "Projectiles ignore 5 Enemy Armor", effect: p => p.armorPierce += 5, rarity: 3, weaponFilter: ['ranged'] },
             { id: 61, name: "Precision Rounds", desc: "Ignores movement speed penalties during attack", effect: p => p.precision = true, rarity: 2, weaponFilter: ['ranged'] },
@@ -330,8 +330,14 @@
             { id: 92, name: "Health Regen II", desc: "+1.0 Health Regen/second", effect: p => p.healthRegen += 1.0, rarity: 2 },
             { id: 93, name: "Armor Plating II", desc: "+1.25 Armor", effect: p => p.armor += 1.25, rarity: 2 },
             { id: 94, name: "Homing II", desc: "Greatly improved projectile homing (Ranged/Elemental)", effect: p => p.homingStrength = (p.homingStrength || 0) + 0.05, rarity: 3, weaponFilter: ['ranged', 'elemental'] },
-            { id: 95, name: "DOT Spread II", desc: "DOT spreads to 2 nearby targets on application", effect: p => p.dotSpreadTargets += 2, rarity: 3, weaponFilter: ['elemental'] },
-            { id: 96, name: "Mass Destruction", desc: "+5 Projectile Count (Shotgun effect)", effect: p => p.projectileCount += 5, rarity: 3, weaponFilter: ['ranged'] },
+            { id: 95, name: "DOT Spread II", desc: "DOT spreads to 2 nearby targets on application", effect: p => p.dotSpreadTargets += 2, rarity: 2, weaponFilter: ['elemental'] },
+            { id: 96, name: "Mass Destruction", desc: "+6 Projectile Count (Shotgun effect)", effect: p => p.projectileCount += 6, rarity: 3, weaponFilter: ['ranged'] },
+            { id: 97, name: "Evase", desc: "+30% Movement Speed", effect: p => { p.speed *= 1.30; p.maxHealth *= 1; }, rarity: 2 },
+            { id: 98, name: "Piercing Rounds", desc: "+1 Projectile Pierce", effect: p => p.pierce += 1, rarity: 1, weaponFilter: ['ranged'] },
+            { id: 99, name: "Rapid Fire III", desc: "+30% Attack Speed", effect: p => p.attackSpeed *= 1.50, rarity: 2 },
+
+
+
 
         ];
 
