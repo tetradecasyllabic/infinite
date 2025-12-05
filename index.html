@@ -1,0 +1,1442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wave Survival 3-Weapon Arena (Ranged Enemies & Expanded Upgrades)</title>
+    <!-- Load Tailwind CSS for modern UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for the game canvas and body */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a1a2e; /* Dark space theme */
+            color: #e4e4e7;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        #gameCanvas {
+            border: 2px solid #6c63ff;
+            background-color: #0f0f1c;
+            box-shadow: 0 0 20px rgba(108, 99, 255, 0.5);
+            max-width: 100%;
+            height: auto;
+            cursor: crosshair;
+        }
+        .ui-panel {
+            background: rgba(30, 30, 50, 0.9);
+            border: 1px solid #6c63ff;
+            backdrop-filter: blur(5px);
+            z-index: 100;
+        }
+        .upgrade-card, .weapon-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+            min-height: 120px;
+        }
+        .upgrade-card:hover, .weapon-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(108, 99, 255, 0.7);
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-4xl w-full flex flex-col items-center">
+        <h1 class="text-3xl font-extrabold mb-4 text-purple-400">Wave Survival: The Undying Arena</h1>
+
+        <div class="flex flex-wrap justify-center w-full mb-4 text-sm font-mono gap-2">
+            <span id="waveInfo" class="bg-gray-700 text-yellow-300 px-3 py-1 rounded-full">Wave: 0</span>
+            <span id="enemiesLeft" class="bg-gray-700 text-red-300 px-3 py-1 rounded-full">Enemies: 0</span>
+            <span id="scoreDisplay" class="bg-gray-700 text-green-300 px-3 py-1 rounded-full">Score: 0</span>
+        </div>
+
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+        <!-- Game Overlay for Start, Upgrades, Game Over -->
+        <div id="gameOverlay" class="absolute inset-0 flex items-center justify-center" style="background: rgba(0, 0, 0, 0.7);">
+            
+            <!-- Weapon Selection Screen (Initial State) -->
+            <div id="startScreen" class="ui-panel p-8 rounded-xl shadow-2xl w-full max-w-4xl text-center">
+                <h2 class="text-3xl font-bold mb-6 text-purple-400">Choose Your Weapon</h2>
+                <div class="grid grid-cols-3 gap-6">
+                    <!-- RANGED -->
+                    <div id="selectRanged" class="weapon-card p-6 rounded-lg bg-gray-800 border-2 border-yellow-500 hover:bg-gray-700">
+                        <h3 class="text-xl font-bold text-yellow-300 mb-2">Ranged (Gun)</h3>
+                        <p class="text-sm text-gray-300">High impact damage, focuses on critical hits and pierce.</p>
+                        <p class="text-xs mt-2 text-yellow-500 font-bold">Standard, consistent DPS.</p>
+                    </div>
+                    <!-- MELEE -->
+                    <div id="selectMelee" class="weapon-card p-6 rounded-lg bg-gray-800 border-2 border-red-500 hover:bg-gray-700">
+                        <h3 class="text-xl font-bold text-red-300 mb-2">Melee (Sword Aura)</h3>
+                        <p class="text-sm text-gray-300">Very short range, high damage, unlimited pierce in a frontal arc.</p>
+                        <p class="text-xs mt-2 text-red-500 font-bold">High risk, high reward, requires close combat.</p>
+                    </div>
+                    <!-- ELEMENTAL -->
+                    <div id="selectElemental" class="weapon-card p-6 rounded-lg bg-gray-800 border-2 border-green-500 hover:bg-gray-700">
+                        <h3 class="text-xl font-bold text-green-300 mb-2">Elemental (Staff)</h3>
+                        <p class="text-sm text-gray-300">Low impact damage but applies high Fire & Poison DOT on every hit.</p>
+                        <p class="text-xs mt-2 text-green-500 font-bold">Focuses on status effects and wave clear.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Upgrade Selection Screen -->
+            <div id="upgradeSelection" class="ui-panel p-6 rounded-xl shadow-2xl w-full max-w-4xl hidden">
+                <h2 class="text-2xl font-bold mb-4 text-center text-purple-400">Wave Complete! Choose an Upgrade:</h2>
+                <div id="upgradeContainer" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Upgrade cards will be inserted here -->
+                </div>
+            </div>
+
+            <!-- Game Over Screen -->
+            <div id="gameOverScreen" class="ui-panel p-8 rounded-xl shadow-2xl w-full max-w-md text-center hidden">
+                <h2 class="text-4xl font-extrabold mb-4 text-red-500">GAME OVER</h2>
+                <p class="text-xl mb-6">You survived until Wave <span id="finalWave" class="font-bold text-yellow-300"></span> with a Score of <span id="finalScore" class="font-bold text-yellow-300"></span>.</p>
+                <button id="restartButton" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">
+                    Restart Game
+                </button>
+            </div>
+        </div>
+
+        <div class="mt-4 w-full max-w-4xl p-4 ui-panel rounded-xl">
+            <h3 class="text-xl font-semibold mb-2 text-purple-300">Controls & Stats</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                <p><strong>Move:</strong> W, A, S, D</p>
+                <p><strong>Dash:</strong> SHIFT (5s Cooldown)</p>
+                <p id="playerHealth" class="text-green-400">Health: 100 / 100</p>
+                <p id="playerDamage" class="text-red-400">Damage: 10</p>
+                <p id="playerAttackSpeed" class="text-blue-400">Attack Speed: 1.0/s</p>
+                <p id="playerLifesteal" class="text-yellow-400">Lifesteal: 0%</p>
+                <p id="playerWeaponType" class="text-pink-400">Weapon: Ranged</p>
+                <p id="playerDOTs" class="text-emerald-400">DOT Damage: 0</p>
+                <p id="dashCooldown" class="text-indigo-400">Dash CD: 5.0s</p>
+                <p id="currentArmor" class="text-gray-400">Armor: 0</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const GAME_WIDTH = canvas.width;
+        const GAME_HEIGHT = canvas.height;
+
+        // --- GAME CONSTANTS & STATE ---
+        let gameLoopId;
+        let isPaused = true;
+        let player, enemies = [], projectiles = []; 
+        let keys = {};
+        let lastAttackTime = 0;
+        let lastDashTime = 0;
+        let wave = 0;
+        let score = 0;
+        let enemiesToSpawn = 0;
+        let enemiesSpawned = 0;
+        let enemiesKilled = 0;
+        let gameOver = false;
+        
+        // --- DAMAGE INDICATOR STATE ---
+        let floatingTexts = []; 
+
+        // --- FLOATING TEXT CLASS & UTILITY ---
+        class FloatingText {
+            constructor(x, y, text, color, isDotTick = false) {
+                // Offset position slightly for a "floating" effect
+                this.x = x + (Math.random() * 20 - 10);
+                this.y = y - 5;
+                this.text = text;
+                this.color = color;
+                this.vx = (Math.random() - 0.5) * 0.5; 
+                this.vy = -1; 
+                this.lifetime = 100; // Frames (about 1.6 seconds)
+                this.age = 0;
+                this.size = isDotTick ? 14 : 18; 
+                this.isDotTick = isDotTick;
+            }
+
+            update(deltaTime) {
+                const scale = deltaTime * 0.06;
+                this.x += this.vx * scale; 
+                this.y += this.vy * scale;
+                this.vy *= 0.98; 
+                this.age += scale;
+            }
+
+            draw() {
+                const alpha = 1 - (this.age / this.lifetime);
+                if (alpha <= 0) return;
+
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = this.color;
+                // Larger font for crits
+                ctx.font = `bold ${this.size + (this.color === '#facc15' ? 4 : 0)}px Inter, sans-serif`; 
+                ctx.textAlign = 'center';
+                // Outline for better visibility on dark background
+                ctx.strokeStyle = '#000000'; 
+                ctx.lineWidth = 2;
+                ctx.strokeText(this.text, this.x, this.y);
+                ctx.fillText(this.text, this.x, this.y);
+                ctx.restore();
+            }
+        }
+
+        function showDamageIndicator(x, y, damage, type) {
+            const damageInt = Math.floor(damage);
+            if (damageInt <= 0) return;
+            
+            let color = '#f87171'; // Red for standard enemy hit
+            let isDotTick = false;
+            
+            switch(type) {
+                case 'CRIT':
+                    color = '#facc15'; // Yellow (Crit)
+                    break;
+                case 'LIFESTEAL':
+                    color = '#10b981'; // Green (Heal)
+                    break;
+                case 'DOT':
+                    color = '#34d399'; // Mint Green (Elemental/Poison)
+                    isDotTick = true;
+                    break;
+                case 'REFLECT':
+                    color = '#6c63ff'; // Purple (Reflect)
+                    break;
+                case 'PLAYER_HIT':
+                    color = '#ffffff'; // White (Player takes hit)
+                    break;
+                case 'BARRIER':
+                    color = '#ffc000'; // Orange (Barrier hit)
+                    break;
+                default: // STANDARD
+                    color = '#f87171';
+            }
+
+            floatingTexts.push(new FloatingText(x, y, `${damageInt}`, color, isDotTick));
+        }
+        
+        // --- UPGRADE DEFINITIONS (Expanded to ~90) ---
+        const UPGRADES = [
+            // --- EXISTING UPGRADES (IDs 1-40) ---
+            { id: 1, name: "Power Shot I", desc: "+15% Weapon Damage", effect: p => p.damage *= 1.15, rarity: 1 },
+            { id: 2, name: "Long Barrel I", desc: "+20% Weapon Range", effect: p => p.range *= 1.2, rarity: 1 },
+            { id: 3, name: "Rapid Fire I", desc: "+15% Attack Speed", effect: p => p.attackSpeed *= 1.15, rarity: 1 },
+            { id: 4, name: "Piercing Rounds I", desc: "+2 Projectile Pierce", effect: p => p.pierce += 2, rarity: 1, weaponFilter: ['ranged'] },
+            { id: 5, name: "Critical Eye I", desc: "+5% Critical Hit Chance", effect: p => p.critChance += 0.05, rarity: 1 },
+            { id: 6, name: "Crit Multiplier I", desc: "+25% Critical Hit Damage", effect: p => p.critDamageMultiplier += 0.25, rarity: 1 },
+            { id: 7, name: "Extra Ammo", desc: "+1 Projectile Count (Shotgun effect)", effect: p => p.projectileCount += 1, rarity: 2, weaponFilter: ['ranged'] },
+            { id: 8, name: "Knockback Rounds", desc: "+50% Enemy Knockback", effect: p => p.knockback *= 1.5, rarity: 2 },
+            { id: 9, name: "Homing System", desc: "Projectiles slightly home to nearest enemy", effect: p => p.homing = true, rarity: 3, weaponFilter: ['ranged'] },
+            { id: 10, name: "Lethal Force", desc: "+20% Damage to Burning/Poisoned", effect: p => p.dotBonusDamage += 0.2, rarity: 3 },
+            { id: 11, name: "Iron Skin I", desc: "+10 Max Health", effect: p => p.maxHealth += 10, rarity: 1 },
+            { id: 12, name: "Life Leech I", desc: "+10% Lifesteal", effect: p => p.lifesteal += 0.1, rarity: 1 },
+            { id: 13, name: "Agile Feet I", desc: "+10% Movement Speed", effect: p => p.speed *= 1.1, rarity: 1 },
+            { id: 14, name: "Dash Recharge I", desc: "-0.5s Dash Cooldown", effect: p => p.dashCooldown = Math.max(2, p.dashCooldown - 0.5), rarity: 1 },
+            { id: 15, name: "Dash Mastery", desc: "+10% Dash Dodge Chance (Max 95%)", effect: p => p.dashDodgeChance = Math.min(0.95, p.dashDodgeChance + 0.1), rarity: 2 },
+            { id: 16, name: "Regenerative Plating", desc: "+0.5 Health Regen/second", effect: p => p.healthRegen += 0.5, rarity: 2 },
+            { id: 17, name: "Defensive Barrier", desc: "Gain 1 Barrier (blocks 1 touch hit)", effect: p => p.barrier += 1, rarity: 3 },
+            { id: 18, name: "Heavy Armor I", desc: "+5 Armor (Reduces enemy touch damage)", effect: p => p.armor += 5, rarity: 3 },
+            { id: 19, name: "Damage Reflection", desc: "10% Damage Reflection on touch", effect: p => p.damageReflection += 0.1, rarity: 3 },
+            { id: 20, name: "Emergency Dash", desc: "+1 Dash Charge", effect: p => p.dashCharges += 1, rarity: 3 },
+            { id: 21, name: "Flame Core I", desc: "Adds +5 Fire Damage (DOT)", effect: p => p.fireDamage += 5, rarity: 1 },
+            { id: 22, name: "Venom Strike I", desc: "Adds +5 Poison Damage (DOT)", effect: p => p.poisonDamage += 5, rarity: 1 },
+            { id: 23, name: "Cryo Rounds", desc: "Projectiles apply Slow (1s duration)", effect: p => p.slowDuration += 1, rarity: 2 },
+            { id: 24, name: "DOT Amplifier", desc: "+20% Global DOT Tick Rate", effect: p => p.dotTickRateMultiplier *= 1.2, rarity: 2 },
+            { id: 25, name: "Money Magnet", desc: "+20% Coin Magnet Radius", effect: p => p.coinMagnetRadius *= 1.2, rarity: 1 },
+            { id: 26, name: "Treasure Hunter", desc: "+10% Score/Coin Gain", effect: p => p.coinMultiplier += 0.1, rarity: 2 },
+            { id: 27, name: "Area Blast", desc: "+10 Projectile Area of Effect (AOE) radius", effect: p => p.aoeRadius += 10, rarity: 2 },
+            { id: 28, name: "Double Tap", desc: "+10% Chance for Double Attack", effect: p => p.doubleAttackChance += 0.1, rarity: 3 },
+            { id: 29, name: "Projectile Lifespan", desc: "+20% Projectile Lifespan", effect: p => p.projectileLifespanMultiplier *= 1.2, rarity: 1 },
+            { id: 30, name: "Rage Mode", desc: "+5% Damage for every 10 Health Missing", effect: p => p.rageDamageBonus += 0.05, rarity: 3 },
+            { id: 31, name: "Sword Length I", desc: "+20% Melee Range", effect: p => p.meleeRange *= 1.2, rarity: 1, weaponFilter: ['melee'] },
+            { id: 32, name: "Whirlwind Arc", desc: "+50% Melee Arc Width", effect: p => p.meleeArc += 0.5, rarity: 3, weaponFilter: ['melee'] },
+            { id: 33, name: "Haste Aura", desc: "+25% Melee Attack Speed", effect: p => p.attackSpeed *= 1.25, rarity: 2, weaponFilter: ['melee'] },
+            { id: 34, name: "Vampiric Blade", desc: "+20% Lifesteal (Melee only)", effect: p => p.lifesteal += 0.2, rarity: 2, weaponFilter: ['melee'] },
+            { id: 35, name: "Pure Element I", desc: "+20% Fire/Poison Damage", effect: p => { p.fireDamage *= 1.2; p.poisonDamage *= 1.2; }, rarity: 1, weaponFilter: ['elemental'] },
+            { id: 36, name: "Chain Reaction I", desc: "10% Chance for Chain Lightning (2 targets)", effect: p => { p.chainLightningChance += 0.1; p.chainTargets += 2; }, rarity: 2, weaponFilter: ['elemental'] },
+            { id: 37, name: "Overcharge", desc: "+50% AOE Radius on Elemental Hit", effect: p => p.aoeRadius *= 1.5, rarity: 2, weaponFilter: ['elemental'] },
+            { id: 38, name: "Toxic Coating", desc: "+50% Poison DOT Duration", effect: p => p.poisonDurationMultiplier += 0.5, rarity: 1, weaponFilter: ['elemental'] },
+            { id: 39, name: "Inferno Core", desc: "+50% Fire DOT Duration", effect: p => p.fireDurationMultiplier += 0.5, rarity: 1, weaponFilter: ['elemental'] },
+            { id: 40, name: "Aether Blast", desc: "+2 Elemental Projectile Pierce", effect: p => p.pierce += 2, rarity: 3, weaponFilter: ['elemental'] },
+
+            // --- NEW UPGRADES (IDs 41-95) ---
+
+            // General & Defensive (41-55, 76-80, 85-90)
+            { id: 41, name: "Evasive Maneuvers", desc: "+15% Movement Speed, -10% Max Health", effect: p => { p.speed *= 1.15; p.maxHealth *= 0.9; }, rarity: 2 },
+            { id: 42, name: "Health Conversion", desc: "+10% Max Health, +5% Damage", effect: p => { p.maxHealth *= 1.1; p.damage *= 1.05; }, rarity: 1 },
+            { id: 43, name: "Focused Aim", desc: "+10% Damage, -10% Attack Speed", effect: p => { p.damage *= 1.1; p.attackSpeed *= 0.9; }, rarity: 1 },
+            { id: 44, name: "Vigor", desc: "+1 Health Regen/s", effect: p => p.healthRegen += 1, rarity: 2 },
+            { id: 45, name: "Reinforced Armor", desc: "+10 Armor", effect: p => p.armor += 10, rarity: 3 },
+            { id: 46, name: "Defensive Stance", desc: "+5% Damage Reflection", effect: p => p.damageReflection += 0.05, rarity: 1 },
+            { id: 47, name: "Dash Surge", desc: "+20% Dash Speed", effect: p => p.dashSpeed *= 1.2, rarity: 1 },
+            { id: 48, name: "Dash Invulnerability", desc: "+150ms Dash Invulnerability", effect: p => p.dashDuration += 150, rarity: 2 },
+            { id: 49, name: "Extra Barrier", desc: "Gain 2 Barrier (blocks 2 touch hits)", effect: p => p.barrier += 2, rarity: 3 },
+            { id: 50, name: "Utility Belt", desc: "+50% Coin Magnet Radius", effect: p => p.coinMagnetRadius *= 1.5, rarity: 2 },
+            { id: 51, name: "Wealth Accumulator", desc: "+20% Score/Coin Gain", effect: p => p.coinMultiplier += 0.2, rarity: 3 },
+            { id: 52, name: "DOT Mitigation", desc: "-10% DOT Damage taken", effect: p => p.dotMitigation = (p.dotMitigation || 0) + 0.1, rarity: 2 },
+            { id: 53, name: "Executioner", desc: "+20% Damage to enemies below 20% Health", effect: p => p.executionerBonus = (p.executionerBonus || 0) + 0.2, rarity: 3 },
+            { id: 54, name: "Survivalist", desc: "+50% Health Regen when below 50% Max Health", effect: p => p.lowHealthRegenBonus = (p.lowHealthRegenBonus || 0) + 0.5, rarity: 2 },
+            { id: 55, name: "Relentless", desc: "+10% Speed for every 20% Health Missing", effect: p => p.rageSpeedBonus = (p.rageSpeedBonus || 0) + 0.1, rarity: 3 },
+
+            // Ranged Specific (56-65)
+            { id: 56, name: "Bullet Velocity I", desc: "+20% Projectile Speed", effect: p => p.projectileSpeed *= 1.2, rarity: 1, weaponFilter: ['ranged'] },
+            { id: 57, name: "Bullet Size I", desc: "+2 Projectile Radius", effect: p => p.projectileRadius += 2, rarity: 2, weaponFilter: ['ranged'] },
+            { id: 58, name: "Ricochet I", desc: "Projectiles ricochet 1 time", effect: p => p.maxRicochets = Math.max(1, p.maxRicochets + 1), rarity: 3, weaponFilter: ['ranged'] },
+            { id: 59, name: "Scatter Shot", desc: "+2 Projectiles, -20% Damage", effect: p => { p.projectileCount += 2; p.damage *= 0.8; }, rarity: 2, weaponFilter: ['ranged'] },
+            { id: 60, name: "Anti-Armor", desc: "Projectiles ignore 5 Enemy Armor", effect: p => p.armorPierce += 5, rarity: 3, weaponFilter: ['ranged'] },
+            { id: 61, name: "Precision Rounds", desc: "Ignores movement speed penalties during attack", effect: p => p.precision = true, rarity: 2, weaponFilter: ['ranged'] },
+            { id: 62, name: "Critical Burst", desc: "10% Chance to fire a second shot on Critical Hit", effect: p => p.critBurstChance += 0.1, rarity: 3, weaponFilter: ['ranged'] },
+            { id: 63, name: "Range Focus II", desc: "+15% Weapon Range", effect: p => p.range *= 1.15, rarity: 1, weaponFilter: ['ranged'] },
+            { id: 64, name: "Speed Loader", desc: "+20% Attack Speed", effect: p => p.attackSpeed *= 1.2, rarity: 2, weaponFilter: ['ranged'] },
+            { id: 65, name: "Piercing Rounds II", desc: "+3 Projectile Pierce", effect: p => p.pierce += 3, rarity: 2, weaponFilter: ['ranged'] },
+            
+            // Elemental Specific (66-70)
+            { id: 66, name: "Fire Spread", desc: "Fire DOT spreads to 1 nearby target on application", effect: p => p.fireSpread = true, rarity: 3, weaponFilter: ['elemental'] },
+            { id: 67, name: "Toxic Overload", desc: "+1 Poison Stack Limit", effect: p => p.poisonStackLimit += 1, rarity: 3, weaponFilter: ['elemental'] },
+            { id: 68, name: "Incendiary Rounds II", desc: "+20% Fire Damage, -10% Poison Damage", effect: p => { p.fireDamage *= 1.2; p.poisonDamage *= 0.9; }, rarity: 1, weaponFilter: ['elemental'] },
+            { id: 69, name: "Toxin Concentration", desc: "+20% Poison DOT Duration", effect: p => p.poisonDurationMultiplier += 0.2, rarity: 1, weaponFilter: ['elemental'] },
+            { id: 70, name: "Elemental Mastery", desc: "+10% Damage to DOT afflicted enemies", effect: p => p.dotBonusDamage += 0.1, rarity: 2, weaponFilter: ['elemental'] },
+
+            // Melee Specific (71-75)
+            { id: 71, name: "Swift Strike", desc: "+15% Melee Attack Speed", effect: p => p.attackSpeed *= 1.15, rarity: 2, weaponFilter: ['melee'] },
+            { id: 72, name: "Sweep Attack", desc: "+0.2 Melee Arc Width", effect: p => p.meleeArc += 0.2, rarity: 1, weaponFilter: ['melee'] },
+            { id: 73, name: "Cleaving Blow", desc: "50% Chance to hit twice (Melee only)", effect: p => p.meleeDoubleHitChance += 0.5, rarity: 3, weaponFilter: ['melee'] },
+            { id: 74, name: "Sanguine Edge", desc: "+15% Lifesteal (Melee only)", effect: p => p.lifesteal += 0.15, rarity: 2, weaponFilter: ['melee'] },
+            { id: 75, name: "Shockwave", desc: "Melee attack gains +5 AOE Radius", effect: p => p.aoeRadius += 5, rarity: 1, weaponFilter: ['melee'] },
+
+            // More General & Utility (76-95)
+            { id: 76, name: "Glass Cannon I", desc: "+25% Damage, -15% Max Health", effect: p => { p.damage *= 1.25; p.maxHealth *= 0.85; }, rarity: 3 },
+            { id: 77, name: "Cooldown Reduction", desc: "-10% Dash Cooldown", effect: p => p.dashCooldown *= 0.9, rarity: 1 },
+            { id: 78, name: "Health Steal II", desc: "+10% Lifesteal", effect: p => p.lifesteal += 0.1, rarity: 2 },
+            { id: 79, name: "Global DOT Rate II", desc: "+20% Global DOT Tick Rate", effect: p => p.dotTickRateMultiplier *= 1.2, rarity: 2 },
+            { id: 80, name: "Crit Focus II", desc: "+10% Crit Chance", effect: p => p.critChance += 0.1, rarity: 3 },
+            { id: 81, name: "Critical Lifesteal", desc: "Lifesteal increased by 50% on Critical Hit", effect: p => p.critLifestealBonus = (p.critLifestealBonus || 0) + 0.5, rarity: 3 },
+            { id: 82, name: "Bullet Shield", desc: "10% Chance to block a projectile", effect: p => p.projectileBlockChance = (p.projectileBlockChance || 0) + 0.1, rarity: 2 },
+            { id: 83, name: "Experience Magnet", desc: "+20% Coin Magnet Radius, +10% Score/Coin", effect: p => { p.coinMagnetRadius *= 1.2; p.coinMultiplier += 0.1; }, rarity: 1 },
+            { id: 84, name: "Double Time", desc: "+10% Double Attack Chance", effect: p => p.doubleAttackChance += 0.1, rarity: 3 },
+            { id: 85, name: "Range Amplifier", desc: "+15% Weapon Range", effect: p => p.range *= 1.15, rarity: 1 },
+            { id: 86, name: "Endurance", desc: "+10% Health and +10 Armor", effect: p => { p.maxHealth *= 1.1; p.armor += 10; }, rarity: 2 },
+            { id: 87, name: "Swift Relocation", desc: "Temporary speed boost (+50% for 1s) after dash", effect: p => p.dashSpeedBoost = true, rarity: 3 },
+            { id: 88, name: "Toxic Immunity", desc: "Gain immunity to Poison DOT", effect: p => p.poisonImmunity = true, rarity: 1 },
+            { id: 89, name: "Flame Ward", desc: "Gain immunity to Fire DOT", effect: p => p.fireImmunity = true, rarity: 1 },
+            { id: 90, name: "Berserker Rage", desc: "+1% Damage for every 5% Health Missing", effect: p => p.berserkerRage = (p.berserkerRage || 0) + 0.01, rarity: 3 },
+            { id: 91, name: "Critical Damage II", desc: "+50% Critical Hit Damage", effect: p => p.critDamageMultiplier += 0.5, rarity: 3 },
+            { id: 92, name: "Health Regen II", desc: "+1.0 Health Regen/second", effect: p => p.healthRegen += 1.0, rarity: 2 },
+            { id: 93, name: "Armor Plating II", desc: "+15 Armor", effect: p => p.armor += 15, rarity: 3 },
+            { id: 94, name: "Homing II", desc: "Greatly improved projectile homing (Ranged/Elemental)", effect: p => p.homingStrength = (p.homingStrength || 0) + 0.05, rarity: 3, weaponFilter: ['ranged', 'elemental'] },
+            { id: 95, name: "DOT Spread II", desc: "DOT spreads to 2 nearby targets on application", effect: p => p.dotSpreadTargets += 2, rarity: 3, weaponFilter: ['elemental'] },
+        ];
+
+
+        // --- PLAYER CLASS ---
+        class Player {
+            constructor(weaponType) {
+                this.x = GAME_WIDTH / 2;
+                this.y = GAME_HEIGHT / 2;
+                this.radius = 15;
+                this.color = '#a78bfa'; 
+
+                // Weapon Choice
+                this.weaponType = weaponType; 
+
+                // Base Stats
+                this.maxHealth = 100;
+                this.health = 100;
+                this.speed = 4;
+                this.lifesteal = 0.0; 
+                this.invulnTimer = 0;
+                this.isDashing = false;
+                this.dashDuration = 100; // Base dash duration in ms
+                this.dashCooldown = 5.0;
+                this.currentDashCharges = 1;
+                this.dashCharges = 1;
+                this.dashSpeed = 15;
+                this.dashDodgeChance = 0.5;
+
+                // Shared Offensive Stats
+                this.damage = (weaponType === 'melee' ? 25 : (weaponType === 'ranged' ? 15 : 5));
+                this.attackSpeed = (weaponType === 'melee' ? 0.8 : (weaponType === 'ranged' ? 1.0 : 1.2));
+                this.range = (weaponType === 'melee' ? 70 : 250); 
+                this.pierce = (weaponType === 'melee' ? 999 : (weaponType === 'elemental' ? 0 : 1));
+                this.projectileCount = 1;
+                this.critChance = 0.05; 
+                this.critDamageMultiplier = 1.5; 
+                this.knockback = 1.0;
+                this.aoeRadius = (weaponType === 'elemental' ? 20 : 0);
+                this.projectileLifespanMultiplier = 1.0;
+                this.doubleAttackChance = 0;
+                
+                // DOT/Elemental Stats
+                this.fireDamage = (weaponType === 'elemental' ? 10 : 0);
+                this.poisonDamage = (weaponType === 'elemental' ? 10 : 0);
+                this.slowDuration = 0;
+                this.fireDurationMultiplier = 1.0;
+                this.poisonDurationMultiplier = 1.0;
+                this.dotTickRateMultiplier = 1.0; 
+                this.chainLightningChance = 0.0;
+                this.chainTargets = 0;
+                this.dotBonusDamage = 0; 
+                
+                // Melee Specific
+                this.meleeRange = this.range; 
+                this.meleeArc = 0.6; // Arc in radians (0.6 radians ~ 34 degrees)
+
+                // New Upgrade Properties (Initialize to 0 or false)
+                this.projectileSpeed = 8; // Ranged/Elemental base speed
+                this.projectileRadius = 4; // Ranged/Elemental base radius
+                this.maxRicochets = 0;
+                this.armorPierce = 0;
+                this.precision = false;
+                this.critBurstChance = 0;
+                this.meleeDoubleHitChance = 0;
+                this.critLifestealBonus = 0;
+                this.projectileBlockChance = 0;
+                this.dotMitigation = 0; // Reduces DOT taken
+                this.executionerBonus = 0; // Damage bonus
+                this.lowHealthRegenBonus = 0; // Regen bonus
+                this.rageSpeedBonus = 0; // Speed based on missing health
+                this.fireSpread = false; // DOT spread
+                this.poisonStackLimit = 0;
+                this.berserkerRage = 0; // Stronger rage damage
+                this.dashSpeedBoost = false;
+                this.dashSpeedTimer = 0;
+                this.poisonImmunity = false;
+                this.fireImmunity = false;
+                this.homingStrength = 1.0; // Homing multiplier
+                this.dotSpreadTargets = 0; // Total dot spread targets
+
+                // Defensive/Utility
+                this.healthRegen = 0;
+                this.barrier = 0;
+                this.armor = 0;
+                this.damageReflection = 0;
+                this.coinMultiplier = 1.0;
+                this.coinMagnetRadius = 50;
+                this.homing = false;
+                this.rageDamageBonus = 0;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color; 
+                if (this.isDashing || this.invulnTimer > 0) {
+                    // Flash when invulnerable
+                    ctx.fillStyle = 'rgba(167, 139, 250, 0.6)'; 
+                }
+                ctx.fill();
+                ctx.strokeStyle = this.isDashing ? '#ffffff' : '#6c63ff';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                ctx.closePath();
+
+                // Draw Health Bar
+                const hpWidth = 30;
+                const hpHeight = 4;
+                const healthRatio = this.health / this.maxHealth;
+                ctx.fillStyle = '#333';
+                ctx.fillRect(this.x - hpWidth / 2, this.y - this.radius - 10, hpWidth, hpHeight);
+                ctx.fillStyle = healthRatio > 0.2 ? '#10b981' : '#ef4444';
+                ctx.fillRect(this.x - hpWidth / 2, this.y - this.radius - 10, hpWidth * healthRatio, hpHeight);
+
+                // Draw Barrier count
+                if (this.barrier > 0) {
+                     ctx.beginPath();
+                     ctx.arc(this.x, this.y, this.radius + 5, 0, Math.PI * 2);
+                     ctx.strokeStyle = 'rgba(255, 192, 0, 0.7)'; // Orange barrier
+                     ctx.lineWidth = 2;
+                     ctx.stroke();
+                     ctx.closePath();
+                }
+
+                ctx.restore();
+            }
+
+            update(deltaTime) {
+                let dx = 0, dy = 0;
+                if (keys['w'] || keys['W']) dy -= 1;
+                if (keys['s'] || keys['S']) dy += 1;
+                if (keys['a'] || keys['A']) dx -= 1;
+                if (keys['d'] || keys['D']) dx += 1;
+
+                const magnitude = Math.sqrt(dx * dx + dy * dy);
+                if (magnitude > 0) {
+                    dx /= magnitude;
+                    dy /= magnitude;
+                }
+
+                // Calculate current movement speed modifiers
+                let currentMoveSpeed = this.speed;
+                if (this.dashSpeedTimer > 0) currentMoveSpeed *= 1.5; // Swift Relocation
+                
+                // Relentless (Speed based on missing health)
+                if (this.rageSpeedBonus > 0) {
+                    const missingHealthPercent = (this.maxHealth - this.health) / this.maxHealth;
+                    currentMoveSpeed *= (1 + this.rageSpeedBonus * Math.floor(missingHealthPercent * 5)); // 5 stages
+                }
+                
+                const moveSpeed = this.isDashing ? this.dashSpeed : currentMoveSpeed;
+                this.x += dx * moveSpeed * deltaTime / 1000 * 60;
+                this.y += dy * moveSpeed * deltaTime / 1000 * 60;
+
+                this.x = Math.max(this.radius, Math.min(GAME_WIDTH - this.radius, this.x));
+                this.y = Math.max(this.radius, Math.min(GAME_HEIGHT - this.radius, this.y));
+
+                // Timers
+                if (this.invulnTimer > 0) this.invulnTimer -= deltaTime;
+                if (this.dashSpeedTimer > 0) this.dashSpeedTimer -= deltaTime;
+                
+                if (this.isDashing && this.dashDuration > 0) {
+                    this.dashDuration -= deltaTime;
+                    if (this.dashDuration <= 0) {
+                        this.isDashing = false;
+                        this.dashDuration = 100; 
+                        this.invulnTimer = 250;
+
+                        if (this.dashSpeedBoost) {
+                            this.dashSpeedTimer = 1000; // 1 second speed boost
+                        }
+                    }
+                }
+
+                // Health Regen (including Survivalist bonus)
+                let currentRegen = this.healthRegen;
+                if (this.lowHealthRegenBonus > 0 && this.health / this.maxHealth <= 0.5) {
+                    currentRegen *= (1 + this.lowHealthRegenBonus);
+                }
+                this.health = Math.min(this.maxHealth, this.health + currentRegen * deltaTime / 1000);
+
+                this.autoAttack(deltaTime);
+                this.updateUI();
+            }
+
+            dash() {
+                const now = Date.now();
+                const cooldownElapsed = (now - lastDashTime) / 1000;
+
+                if (!this.isDashing && cooldownElapsed >= this.dashCooldown && this.currentDashCharges > 0) {
+                    this.isDashing = true;
+                    this.currentDashCharges--;
+                    lastDashTime = now;
+                    
+                    setTimeout(() => {
+                        this.currentDashCharges = Math.min(this.dashCharges, this.currentDashCharges + 1);
+                    }, this.dashCooldown * 1000);
+                }
+            }
+
+            autoAttack(deltaTime) {
+                const now = Date.now();
+                const attackInterval = 1000 / this.attackSpeed;
+
+                if (now - lastAttackTime >= attackInterval) {
+                    let nearestEnemy = findNearestEnemy();
+
+                    if (nearestEnemy) {
+                        lastAttackTime = now;
+                        this.fireProjectile(nearestEnemy);
+                        if (Math.random() < this.doubleAttackChance) {
+                             setTimeout(() => this.fireProjectile(nearestEnemy), 50); 
+                        }
+                    }
+                }
+            }
+
+            fireProjectile(targetEnemy) {
+                const dx = targetEnemy.x - this.x;
+                const dy = targetEnemy.y - this.y;
+                const angle = Math.atan2(dy, dx);
+
+                // Rage Damage Calculation
+                const missingHealth = this.maxHealth - this.health;
+                const rageBonus = Math.floor(missingHealth / 10) * this.rageDamageBonus;
+                const berserkerBonus = this.berserkerRage * missingHealth / this.maxHealth * 100 / 5;
+                const totalDamageMultiplier = 1 + rageBonus + berserkerBonus;
+                const totalDamage = this.damage * totalDamageMultiplier;
+                
+                const fireDuration = 3000 * this.fireDurationMultiplier;
+                const poisonDuration = 5000 * this.poisonDurationMultiplier;
+
+
+                for (let i = 0; i < this.projectileCount; i++) {
+                    const spread = (i - (this.projectileCount - 1) / 2) * (Math.PI / 12);
+                    
+                    if (this.weaponType === 'melee') {
+                         projectiles.push(new Projectile(
+                            this.x, this.y, angle, totalDamage, this.pierce, this.lifesteal, 
+                            this.fireDamage, this.poisonDamage, this.slowDuration, this.aoeRadius, 
+                            this.knockback, this.critChance, this.critDamageMultiplier, this.homing, 
+                            this.projectileLifespanMultiplier, 'melee', this.meleeRange, this.meleeArc,
+                            fireDuration, poisonDuration, this.projectileRadius, this.projectileSpeed, 
+                            this.armorPierce, this.executionerBonus, this.critLifestealBonus, this.meleeDoubleHitChance, this.dotSpreadTargets
+                        ));
+                    } else if (this.weaponType === 'ranged' || this.weaponType === 'elemental') {
+                        projectiles.push(new Projectile(
+                            this.x, this.y, angle + spread, totalDamage, this.pierce, this.lifesteal, 
+                            this.fireDamage, this.poisonDamage, this.slowDuration, this.aoeRadius, 
+                            this.knockback, this.critChance, this.critDamageMultiplier, this.homing, 
+                            this.projectileLifespanMultiplier, this.weaponType, this.range, 0, 
+                            fireDuration, poisonDuration, this.projectileRadius, this.projectileSpeed, 
+                            this.armorPierce, this.executionerBonus, this.critLifestealBonus, 0, this.dotSpreadTargets,
+                            this.chainLightningChance, this.chainTargets, this.maxRicochets, this.homingStrength, this.fireSpread
+                        ));
+                    }
+                }
+            }
+
+            takeDamage(damage) {
+                // Projectile Block Chance
+                if (this.projectileBlockChance > 0 && Math.random() < this.projectileBlockChance) { return 0; }
+
+                if (this.isDashing && Math.random() < this.dashDodgeChance) { return 0; }
+                if (this.invulnTimer > 0) return 0;
+
+                if (this.barrier > 0) {
+                    this.barrier--;
+                    this.invulnTimer = 250;
+                    showDamageIndicator(this.x, this.y - this.radius, damage, 'BARRIER');
+                    return 0;
+                }
+
+                const mitigatedDamage = Math.max(0, damage - this.armor);
+                this.health -= mitigatedDamage;
+                this.invulnTimer = 250;
+                
+                showDamageIndicator(this.x, this.y - this.radius, mitigatedDamage, 'PLAYER_HIT');
+
+                if (this.health <= 0) {
+                    this.health = 0;
+                    endGame();
+                }
+                return mitigatedDamage;
+            }
+
+            updateUI() {
+                document.getElementById('playerHealth').textContent = `Health: ${this.health.toFixed(0)} / ${this.maxHealth.toFixed(0)} (Barriers: ${this.barrier})`;
+                document.getElementById('playerDamage').textContent = `Damage: ${this.damage.toFixed(1)} (Crit: ${(this.critChance * 100).toFixed(0)}%)`;
+                document.getElementById('playerAttackSpeed').textContent = `Attack Speed: ${this.attackSpeed.toFixed(2)}/s`;
+                document.getElementById('playerLifesteal').textContent = `Lifesteal: ${(this.lifesteal * 100).toFixed(0)}%`;
+                document.getElementById('playerWeaponType').textContent = `Weapon: ${this.weaponType.toUpperCase()}`;
+                document.getElementById('currentArmor').textContent = `Armor: ${this.armor.toFixed(0)}`;
+                
+                let dotText = `DOT Damage: Fire ${this.fireDamage.toFixed(0)}, Poison ${this.poisonDamage.toFixed(0)}`;
+                const fireStacks = enemies.reduce((sum, e) => sum + (e.dotEffects.fire ? e.dotEffects.fire.totalStacks : 0), 0);
+                const poisonStacks = enemies.reduce((sum, e) => sum + (e.dotEffects.poison ? e.dotEffects.poison.totalStacks : 0), 0);
+                if (fireStacks > 0 || poisonStacks > 0) {
+                     dotText += ` (Active Stacks: F:${fireStacks}, P:${poisonStacks})`;
+                }
+
+                document.getElementById('playerDOTs').textContent = dotText;
+
+
+                const cooldownElapsed = (Date.now() - lastDashTime) / 1000;
+                const remainingCD = Math.max(0, this.dashCooldown - cooldownElapsed);
+                const cdText = remainingCD > 0 ? `${remainingCD.toFixed(1)}s` : 'READY';
+                document.getElementById('dashCooldown').textContent = `Dash CD: ${cdText} (Charges: ${this.currentDashCharges})`;
+
+                document.getElementById('waveInfo').textContent = `Wave: ${wave}`;
+                document.getElementById('enemiesLeft').textContent = `Enemies: ${enemies.length + (enemiesToSpawn - enemiesSpawned)}`;
+                document.getElementById('scoreDisplay').textContent = `Score: ${score}`;
+            }
+        }
+        
+        // Helper to find the nearest enemy within player's range
+        function findNearestEnemy() {
+            let nearestEnemy = null;
+            let nearestDistSq = player.range * player.range + 1;
+
+            enemies.forEach(enemy => {
+                const dx = enemy.x - player.x;
+                const dy = enemy.y - player.y;
+                const distSq = dx * dx + dy * dy;
+
+                if (distSq <= player.range * player.range && distSq < nearestDistSq) {
+                    nearestEnemy = enemy;
+                    nearestDistSq = distSq;
+                }
+            });
+            return nearestEnemy;
+        }
+
+        // --- ENEMY CLASS ---
+        class Enemy {
+            constructor(x, y, waveLevel, type) {
+                this.x = x;
+                this.y = y;
+                this.type = type;
+                
+                const scalingFactor = 1 + waveLevel * 0.2; 
+                
+                let baseStats = {};
+                switch(type) {
+                    case 'normal': baseStats = { hp: 15, speed: 1.5, damage: 5, color: '#e94560', radius: 10, armor: 0 }; break; 
+                    case 'tank': baseStats = { hp: 45, speed: 0.8, damage: 8, color: '#3b82f6', radius: 12, armor: 10 }; break; 
+                    case 'fast': baseStats = { hp: 5, speed: 3.0, damage: 3, color: '#f97316', radius: 8, armor: 0 }; break; 
+                    // RANGED ENEMY: Stops at 300 range, fires every 2s
+                    case 'projectile': baseStats = { hp: 10, speed: 1.0, damage: 4, color: '#10b981', radius: 10, armor: 5 }; break; 
+                }
+
+                this.radius = baseStats.radius;
+                this.baseHealth = baseStats.hp * scalingFactor;
+                this.health = this.baseHealth;
+                this.speed = baseStats.speed * scalingFactor * 0.5; 
+                this.damage = baseStats.damage * scalingFactor * 0.5; 
+                this.color = baseStats.color;
+                this.armor = baseStats.armor;
+                
+                this.dotEffects = {}; 
+                this.isSlowed = false;
+                this.slowTimer = 0;
+                this.isDead = false;
+                this.knockbackX = 0;
+                this.knockbackY = 0;
+                
+                // Ranged Enemy Specifics
+                this.attackRange = 300;
+                this.attackInterval = 2000; 
+                this.lastAttack = Date.now() + Math.random() * 1000; // Stagger first attack
+                this.projectileSpeed = 5;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                if (this.isSlowed) ctx.fillStyle = '#63b2ff'; 
+                ctx.fill();
+                ctx.closePath();
+
+                // Draw Health Bar
+                const hpWidth = 30;
+                const hpHeight = 3;
+                const healthRatio = this.health / this.baseHealth;
+                ctx.fillStyle = '#333';
+                ctx.fillRect(this.x - hpWidth / 2, this.y - this.radius - 8, hpWidth, hpHeight);
+                ctx.fillStyle = healthRatio > 0.2 ? '#10b981' : '#ef4444';
+                ctx.fillRect(this.x - hpWidth / 2, this.y - this.radius - 8, hpWidth * healthRatio, hpHeight);
+
+                // Draw Armor Indicator (small shield icon or bar)
+                if (this.armor > 0) {
+                    ctx.fillStyle = '#6b7280'; // Gray for armor
+                    ctx.fillRect(this.x - hpWidth / 2, this.y - this.radius - 13, hpWidth * (this.armor / 20), 2);
+                }
+
+                ctx.restore();
+            }
+
+            update(deltaTime) {
+                if (this.isDead) return;
+
+                this.processDOTs(deltaTime);
+
+                const dxToPlayer = player.x - this.x;
+                const dyToPlayer = player.y - this.y;
+                const distance = Math.hypot(dxToPlayer, dyToPlayer);
+
+                let moveSpeed = this.speed;
+                if (this.isSlowed) moveSpeed *= 0.5; 
+                
+                const nx = dxToPlayer / distance;
+                const ny = dyToPlayer / distance;
+
+                if (this.type !== 'projectile' || distance > this.attackRange) {
+                    // Standard movement: move towards player
+                    this.x += nx * moveSpeed * deltaTime / 1000 * 60;
+                    this.y += ny * moveSpeed * deltaTime / 1000 * 60;
+                } else if (this.type === 'projectile') {
+                    // Ranged Enemy behavior: stop and attack
+                    this.fireProjectile();
+                }
+
+                // Knockback decay
+                this.x += this.knockbackX;
+                this.y += this.knockbackY;
+                this.knockbackX *= 0.9;
+                this.knockbackY *= 0.9;
+
+                this.slowTimer -= deltaTime;
+                if (this.slowTimer <= 0) {
+                    this.isSlowed = false;
+                    this.slowTimer = 0;
+                }
+            }
+            
+            fireProjectile() {
+                const now = Date.now();
+                if (now - this.lastAttack >= this.attackInterval) {
+                    this.lastAttack = now;
+                    
+                    const dx = player.x - this.x;
+                    const dy = player.y - this.y;
+                    const angle = Math.atan2(dy, dx);
+                    
+                    projectiles.push(new Projectile(
+                        this.x, this.y, angle, 
+                        this.damage, 
+                        1, 0, 0, 0, 0, 0, 0, 0, 0, false, 
+                        1, 'enemy', 1, 0, 0, 0, 6, this.projectileSpeed 
+                        // Enemy projectiles don't use the rest of player's attributes
+                    ));
+                }
+            }
+
+            processDOTs(deltaTime) {
+                for (const type in this.dotEffects) {
+                    const dot = this.dotEffects[type];
+                    
+                    // Apply DOT Mitigation if available
+                    const mitigationFactor = 1 - (player.dotMitigation || 0);
+
+                    const totalDamagePerDuration = dot.damagePerStack * dot.totalStacks;
+                    let dps = totalDamagePerDuration / (dot.maxDuration / 1000);
+                    let effectiveDPS = dps * player.dotTickRateMultiplier * mitigationFactor; 
+
+                    if (Object.keys(this.dotEffects).length >= 2 && player.dotBonusDamage > 0) { 
+                        effectiveDPS *= (1 + player.dotBonusDamage); 
+                    }
+
+                    dot.damageAccumulator += effectiveDPS * (deltaTime / 1000); 
+
+                    // Apply Damage
+                    if (dot.damageAccumulator >= 1) {
+                        const damageToApply = Math.floor(dot.damageAccumulator);
+                        this.health -= damageToApply;
+                        dot.damageAccumulator -= damageToApply;
+                        
+                        showDamageIndicator(this.x, this.y - this.radius, damageToApply, 'DOT'); 
+                        
+                        if (this.health <= 0) { this.die(); return; }
+                    }
+
+                    // Duration Decay
+                    dot.durationTimer -= deltaTime;
+                    if (dot.durationTimer <= 0) {
+                        delete this.dotEffects[type];
+                    }
+                }
+            }
+
+            takeDamage(damage) {
+                const damageTaken = Math.max(0, damage - this.armor);
+                this.health -= damageTaken;
+                if (this.health <= 0 && !this.isDead) {
+                    this.die();
+                }
+                return damageTaken;
+            }
+
+            applyDOT(type, baseDamage, duration, spreadTargets = 0) {
+                if ((type === 'poison' && player.poisonImmunity) || (type === 'fire' && player.fireImmunity)) return;
+
+                if (this.dotEffects[type]) {
+                    if (type === 'poison' && this.dotEffects[type].totalStacks >= (player.poisonStackLimit + 1)) return;
+                    
+                    this.dotEffects[type].totalStacks += 1;
+                    this.dotEffects[type].durationTimer = this.dotEffects[type].maxDuration; 
+                } else {
+                    this.dotEffects[type] = {
+                        damagePerStack: baseDamage,
+                        totalStacks: 1,
+                        maxDuration: duration,
+                        durationTimer: duration,
+                        damageAccumulator: 0,
+                    };
+                }
+                
+                // DOT Spreading (Fire Spread / DOT Spread II)
+                if ((type === 'fire' && player.fireSpread) || spreadTargets > 0) {
+                    this.spreadDOT(type, baseDamage, duration, spreadTargets + (player.fireSpread ? 1 : 0));
+                }
+            }
+
+            spreadDOT(type, baseDamage, duration, targets) {
+                if (targets <= 0) return;
+                
+                const spreadRange = 50; 
+                let potentialTargets = enemies.filter(e => 
+                    e !== this && !e.isDead && Math.hypot(e.x - this.x, e.y - this.y) < spreadRange
+                );
+                
+                for (let i = 0; i < Math.min(targets, potentialTargets.length); i++) {
+                    potentialTargets[i].applyDOT(type, baseDamage, duration, 0); // Don't chain spread
+                }
+            }
+
+            applySlow(duration) {
+                this.isSlowed = true;
+                this.slowTimer = Math.max(this.slowTimer, duration * 1000);
+            }
+
+            applyKnockback(strength, angle) {
+                const force = strength * 5; 
+                this.knockbackX += Math.cos(angle) * force;
+                this.knockbackY += Math.sin(angle) * force;
+            }
+
+            die() {
+                this.isDead = true;
+                enemiesKilled++;
+                score += Math.floor(10 * player.coinMultiplier * wave); 
+            }
+        }
+
+        // --- PROJECTILE CLASS ---
+        class Projectile {
+            constructor(x, y, angle, damage, pierce, lifesteal, fireDamage, poisonDamage, slowDuration, aoeRadius, knockback, critChance, critDamageMultiplier, homing, lifespanMultiplier, type, range = 0, arc = 0, fireDuration = 3000, poisonDuration = 5000, radius = 4, speed = 8, armorPierce = 0, executionerBonus = 0, critLifestealBonus = 0, meleeDoubleHitChance = 0, dotSpreadTargets = 0, chainChance = 0, chainTargets = 0, maxRicochets = 0, homingStrength = 1.0, fireSpread = false) {
+                this.x = x;
+                this.y = y;
+                this.radius = radius;
+                this.speed = speed;
+                this.angle = angle;
+                this.damage = damage;
+                this.pierce = pierce;
+                this.lifesteal = lifesteal;
+                this.fireDamage = fireDamage;
+                this.poisonDamage = poisonDamage;
+                this.slowDuration = slowDuration;
+                this.aoeRadius = aoeRadius;
+                this.knockback = knockback;
+                this.critChance = critChance;
+                this.critDamageMultiplier = critDamageMultiplier;
+                this.homing = homing;
+                this.lifespan = type === 'melee' ? 50 : 1000 * lifespanMultiplier; 
+                this.isDead = false;
+                this.type = type; 
+                this.meleeRange = range;
+                this.meleeArc = arc;
+                this.fireDuration = fireDuration;
+                this.poisonDuration = poisonDuration;
+                this.enemiesHit = new Set();
+                
+                // New attributes used for Player Projectiles
+                this.armorPierce = armorPierce;
+                this.executionerBonus = executionerBonus;
+                this.critLifestealBonus = critLifestealBonus;
+                this.meleeDoubleHitChance = meleeDoubleHitChance;
+                this.dotSpreadTargets = dotSpreadTargets;
+
+                // Ranged/Elemental specific
+                this.chainLightningChance = chainChance;
+                this.chainTargets = chainTargets;
+                this.ricochetsLeft = maxRicochets;
+                this.homingStrength = homingStrength;
+                this.fireSpread = fireSpread;
+
+                // For ricochet bounce logic
+                this.vx = Math.cos(this.angle) * this.speed;
+                this.vy = Math.sin(this.angle) * this.speed;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.beginPath();
+                if (this.type === 'melee') {
+                    ctx.moveTo(player.x, player.y);
+                    ctx.arc(player.x, player.y, this.meleeRange, this.angle - this.meleeArc, this.angle + this.meleeArc);
+                    ctx.lineTo(player.x, player.y);
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                    ctx.fill();
+                    ctx.strokeStyle = '#fde047';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                } else if (this.type === 'enemy') {
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = '#ff0000';
+                    ctx.fill();
+                }
+                 else {
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    if (this.type === 'ranged') ctx.fillStyle = '#fde047';
+                    if (this.type === 'elemental') ctx.fillStyle = '#34d399';
+                    ctx.fill();
+                }
+                ctx.closePath();
+                ctx.restore();
+            }
+
+            update(deltaTime) {
+                if (this.isDead) return;
+
+                this.lifespan -= deltaTime;
+                if (this.lifespan <= 0) {
+                    this.isDead = true;
+                    return;
+                }
+
+                if (this.type === 'melee') {
+                    this.checkMeleeCollisions();
+                } else {
+                    
+                    if (this.homing && this.type !== 'enemy' && enemies.length > 0) {
+                        let nearestEnemy = enemies.reduce((a, b) => {
+                            const distA = Math.hypot(a.x - this.x, a.y - this.y);
+                            const distB = Math.hypot(b.x - this.x, b.y - this.y);
+                            return distA < distB ? a : b;
+                        }, enemies[0]);
+
+                        const dxToTarget = nearestEnemy.x - this.x;
+                        const dyToTarget = nearestEnemy.y - this.y;
+                        const targetAngle = Math.atan2(dyToTarget, dxToTarget);
+                        let diff = targetAngle - this.angle;
+                        if (diff > Math.PI) diff -= 2 * Math.PI;
+                        if (diff < -Math.PI) diff += 2 * Math.PI;
+
+                        const homingStrength = this.homingStrength * 0.05; 
+                        this.angle += diff * homingStrength;
+                        this.vx = Math.cos(this.angle) * this.speed;
+                        this.vy = Math.sin(this.angle) * this.speed;
+                    }
+                    
+                    const moveScale = deltaTime / 1000 * 60;
+                    this.x += this.vx * moveScale;
+                    this.y += this.vy * moveScale;
+
+                    if (this.type === 'ranged' || this.type === 'elemental') {
+                        this.checkPlayerProjectileCollisions();
+                        this.checkRicochet();
+                    } else if (this.type === 'enemy') {
+                        this.checkEnemyProjectileCollision();
+                    }
+                }
+            }
+            
+            checkRicochet() {
+                let bounced = false;
+                if (this.ricochetsLeft > 0) {
+                    if (this.x - this.radius < 0 || this.x + this.radius > GAME_WIDTH) {
+                        this.vx *= -1; 
+                        bounced = true;
+                    }
+                    if (this.y - this.radius < 0 || this.y + this.radius > GAME_HEIGHT) {
+                        this.vy *= -1;
+                        bounced = true;
+                    }
+
+                    if (bounced) {
+                        this.ricochetsLeft--;
+                        // Recalculate angle after bounce
+                        this.angle = Math.atan2(this.vy, this.vx); 
+                    }
+                } else if (this.x < -50 || this.x > GAME_WIDTH + 50 || this.y < -50 || this.y > GAME_HEIGHT + 50) {
+                    this.isDead = true;
+                }
+            }
+
+
+            // Melee Hit Logic
+            checkMeleeCollisions() {
+                let hitsThisFrame = 0;
+                for (let i = enemies.length - 1; i >= 0; i--) {
+                    const enemy = enemies[i];
+                    if (enemy.isDead || enemy.health <= 0 || this.enemiesHit.has(enemy)) continue;
+
+                    const dx = enemy.x - player.x;
+                    const dy = enemy.y - player.y;
+                    const dist = Math.hypot(dx, dy);
+
+                    if (dist < this.meleeRange + enemy.radius) {
+                        const angleToEnemy = Math.atan2(dy, dx);
+                        let angleDiff = angleToEnemy - this.angle;
+                        
+                        if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+                        if (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+
+                        if (Math.abs(angleDiff) < this.meleeArc) { 
+                            this.handleHit(enemy);
+                            this.enemiesHit.add(enemy); 
+                            hitsThisFrame++;
+                        }
+                    }
+                }
+                // Handle Melee Double Hit Chance
+                if (hitsThisFrame > 0 && Math.random() < this.meleeDoubleHitChance) {
+                    // Re-run hit logic but only apply damage/lifesteal, not DOT/etc.
+                    for (const enemy of this.enemiesHit) {
+                        this.handleHit(enemy, true); 
+                    }
+                }
+            }
+
+            // Ranged & Elemental Hit Logic
+            checkPlayerProjectileCollisions() {
+                let primaryHit = false;
+
+                for (let i = enemies.length - 1; i >= 0; i--) {
+                    const enemy = enemies[i];
+                    if (enemy.isDead || enemy.health <= 0 || this.enemiesHit.has(enemy)) continue;
+
+                    const dist = Math.hypot(this.x - enemy.x, this.y - enemy.y);
+                    const collisionDistance = this.radius + enemy.radius + this.aoeRadius;
+
+                    if (dist < collisionDistance) {
+                        this.handleHit(enemy); 
+                        this.enemiesHit.add(enemy); 
+                        primaryHit = true;
+
+                        this.pierce--;
+                        if (this.pierce <= 0) {
+                            this.isDead = true;
+                            break;
+                        }
+                    }
+                }
+                
+                if (primaryHit && (this.type === 'elemental' || this.type === 'ranged') && Math.random() < this.chainLightningChance) {
+                    this.chainLightning(enemies.find(e => this.enemiesHit.has(e)), this.chainTargets);
+                }
+            }
+            
+            chainLightning(startEnemy, targetsLeft) {
+                if (targetsLeft <= 0 || !startEnemy) return;
+
+                const chainRange = 100;
+                let nextEnemy = null;
+                let shortestDist = Infinity;
+
+                enemies.forEach(enemy => {
+                    if (enemy.isDead || this.enemiesHit.has(enemy)) return;
+
+                    const dist = Math.hypot(startEnemy.x - enemy.x, startEnemy.y - enemy.y);
+                    if (dist < chainRange && dist < shortestDist) {
+                        shortestDist = dist;
+                        nextEnemy = enemy;
+                    }
+                });
+
+                if (nextEnemy) {
+                    const chainDamage = this.damage / 2; 
+                    this.handleHit(nextEnemy, false, chainDamage); 
+                    this.enemiesHit.add(nextEnemy);
+
+                    this.chainLightning(nextEnemy, targetsLeft - 1);
+                }
+            }
+
+
+            // Enemy Projectile Hit Logic
+            checkEnemyProjectileCollision() {
+                const dist = Math.hypot(this.x - player.x, this.y - player.y);
+                if (dist < this.radius + player.radius) {
+                    player.takeDamage(this.damage);
+                    this.isDead = true;
+                }
+            }
+
+            handleHit(enemy, isMeleeDoubleHit = false, fixedDamage = 0) {
+                // 1. Calculate Damage
+                const isCrit = Math.random() < this.critChance;
+                const damageMultiplier = isCrit ? this.critDamageMultiplier : 1;
+                let totalDamage = fixedDamage > 0 ? fixedDamage : (this.damage * damageMultiplier);
+
+                // Executioner Bonus
+                if (this.executionerBonus > 0 && enemy.health / enemy.baseHealth <= 0.2) {
+                    totalDamage *= (1 + this.executionerBonus);
+                }
+                
+                // Armor Piercing
+                const effectiveDamage = enemy.takeDamage(Math.max(0, totalDamage - this.armorPierce));
+                
+                // 2. Show Indicator (Only for non-double hits, or for chain damage)
+                if (!isMeleeDoubleHit || fixedDamage > 0) {
+                    const damageType = isCrit ? 'CRIT' : 'STANDARD';
+                    showDamageIndicator(enemy.x, enemy.y - enemy.radius, effectiveDamage, damageType);
+                }
+
+                // 3. Lifesteal (Only for non-chain/non-double hits)
+                if (effectiveDamage > 0 && this.lifesteal > 0 && fixedDamage === 0) {
+                    let healAmount = effectiveDamage * this.lifesteal;
+                    
+                    // Crit Lifesteal Bonus
+                    if (isCrit && this.critLifestealBonus > 0) {
+                        healAmount *= (1 + this.critLifestealBonus);
+                    }
+                    
+                    player.health = Math.min(player.maxHealth, player.health + healAmount);
+                    showDamageIndicator(player.x, player.y - player.radius, healAmount, 'LIFESTEAL');
+                }
+
+                // 4. Apply DOT/Status (Only for primary hits/non-chain)
+                if (!isMeleeDoubleHit && fixedDamage === 0) {
+                     if (this.fireDamage > 0) enemy.applyDOT('fire', this.fireDamage, this.fireDuration, player.dotSpreadTargets);
+                     if (this.poisonDamage > 0) enemy.applyDOT('poison', this.poisonDamage, this.poisonDuration, player.dotSpreadTargets);
+                     if (this.slowDuration > 0) enemy.applySlow(this.slowDuration);
+                }
+
+                // 5. Knockback
+                if (this.knockback > 0) {
+                     enemy.applyKnockback(this.knockback, this.angle);
+                }
+            }
+        }
+
+
+        // --- GAME LOGIC & FLOW ---
+
+        function initGame(weaponType) {
+            player = new Player(weaponType);
+            
+            // Re-calculate projectile size based on base radius
+            if (player.weaponType === 'ranged' || player.weaponType === 'elemental') {
+                player.projectileRadius = player.radius * 0.26; 
+            }
+
+            enemies = [];
+            projectiles = [];
+            floatingTexts = [];
+            wave = 0;
+            score = 0;
+            enemiesToSpawn = 0;
+            enemiesSpawned = 0;
+            enemiesKilled = 0;
+            gameOver = false;
+            isPaused = false;
+            lastAttackTime = 0;
+            lastDashTime = Date.now() - (player.dashCooldown * 1000); 
+
+            document.getElementById('gameOverScreen').classList.add('hidden');
+            document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('upgradeSelection').classList.add('hidden');
+            document.getElementById('gameOverlay').classList.add('hidden');
+
+            startWave();
+        }
+
+        function startGame() {
+            if (!gameLoopId) {
+                let lastTime = performance.now();
+                gameLoopId = requestAnimationFrame(function gameLoop(currentTime) {
+                    const deltaTime = currentTime - lastTime;
+                    lastTime = currentTime;
+
+                    if (!isPaused && !gameOver) {
+                        update(deltaTime);
+                        draw();
+                    } else if (gameOver) {
+                        draw(); 
+                    }
+                    requestAnimationFrame(gameLoop);
+                });
+            }
+        }
+
+        function startWave() {
+            wave++;
+            enemiesToSpawn = 5 + wave * 5; 
+            enemiesSpawned = 0;
+            enemiesKilled = 0;
+
+            document.getElementById('waveInfo').textContent = `Wave: ${wave}`;
+            document.getElementById('gameOverlay').classList.add('hidden');
+            isPaused = false;
+        }
+
+        function update(deltaTime) {
+            player.update(deltaTime);
+
+            if (enemiesSpawned < enemiesToSpawn) {
+                // Higher spawn rate over time
+                if (enemies.length < 20 + wave * 4 && Math.random() < 0.03 * (1 + wave * 0.1)) { 
+                    spawnEnemy();
+                }
+            }
+
+            enemies.forEach(enemy => enemy.update(deltaTime));
+            enemies = enemies.filter(enemy => !enemy.isDead);
+
+            projectiles.forEach(p => p.update(deltaTime));
+            projectiles = projectiles.filter(p => !p.isDead);
+
+            floatingTexts.forEach(text => text.update(deltaTime));
+            floatingTexts = floatingTexts.filter(text => text.age < text.lifetime);
+
+            if (enemiesSpawned >= enemiesToSpawn && enemies.length === 0) {
+                isPaused = true;
+                showUpgradeSelection();
+            }
+
+            // Player-Enemy Collision (Touch Damage)
+            if (player.invulnTimer <= 0) {
+                enemies.forEach(enemy => {
+                    const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
+                    if (dist < player.radius + enemy.radius) {
+                        const damageTaken = player.takeDamage(enemy.damage); 
+
+                        if (damageTaken > 0 && player.damageReflection > 0) {
+                            const reflectionDamage = enemy.damage * player.damageReflection;
+                            showDamageIndicator(enemy.x, enemy.y - enemy.radius, reflectionDamage, 'REFLECT');
+                            enemy.takeDamage(reflectionDamage);
+                        }
+                    }
+                });
+            }
+        }
+
+        function draw() {
+            ctx.fillStyle = '#0f0f1c';
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+            // Draw player range circle
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.range, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(108, 99, 255, 0.1)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            ctx.closePath();
+            ctx.restore();
+
+            projectiles.forEach(p => p.draw());
+
+            enemies.forEach(e => e.draw());
+            
+            player.draw();
+
+            floatingTexts.forEach(text => text.draw());
+        }
+
+        function spawnEnemy() {
+            if (enemiesSpawned >= enemiesToSpawn) return;
+
+            let type;
+            const rand = Math.random();
+            if (wave < 3) {
+                type = 'normal';
+            } else if (wave < 6) {
+                if (rand < 0.7) type = 'normal';
+                else type = 'fast';
+            } else if (wave < 10) {
+                if (rand < 0.5) type = 'normal';
+                else if (rand < 0.7) type = 'fast';
+                else if (rand < 0.85) type = 'tank';
+                else type = 'projectile';
+            } else {
+                if (rand < 0.3) type = 'normal';
+                else if (rand < 0.5) type = 'fast';
+                else if (rand < 0.7) type = 'tank';
+                else type = 'projectile';
+            }
+
+
+            let x, y;
+            const buffer = 50; 
+            const side = Math.floor(Math.random() * 4); 
+
+            switch (side) {
+                case 0: x = Math.random() * GAME_WIDTH; y = -buffer; break; 
+                case 1: x = GAME_WIDTH + buffer; y = Math.random() * GAME_HEIGHT; break; 
+                case 2: x = Math.random() * GAME_WIDTH; y = GAME_HEIGHT + buffer; break; 
+                case 3: x = -buffer; y = Math.random() * GAME_HEIGHT; break; 
+            }
+
+            enemies.push(new Enemy(x, y, wave, type));
+            enemiesSpawned++;
+        }
+
+        function showUpgradeSelection() {
+            document.getElementById('gameOverlay').classList.remove('hidden');
+            document.getElementById('upgradeSelection').classList.remove('hidden');
+            const container = document.getElementById('upgradeContainer');
+            container.innerHTML = '';
+
+            const availableUpgrades = UPGRADES.filter(u => 
+                !u.weaponFilter || u.weaponFilter.includes(player.weaponType)
+            );
+
+            const upgradePool = [...availableUpgrades]; 
+            const chosenUpgrades = [];
+            
+            while (chosenUpgrades.length < 3 && upgradePool.length > 0) {
+                let weights = upgradePool.map(u => 4 - u.rarity); 
+                let totalWeight = weights.reduce((a, b) => a + b, 0);
+                let rand = Math.random() * totalWeight;
+
+                let cumulativeWeight = 0;
+                let chosenIndex = -1;
+
+                for (let j = 0; j < upgradePool.length; j++) {
+                    cumulativeWeight += weights[j];
+                    if (rand < cumulativeWeight) {
+                        chosenIndex = j;
+                        break;
+                    }
+                }
+
+                if (chosenIndex !== -1) {
+                    const upgrade = upgradePool[chosenIndex];
+                    chosenUpgrades.push(upgrade);
+                    upgradePool.splice(chosenIndex, 1);
+                }
+            }
+
+
+            chosenUpgrades.forEach(upgrade => {
+                const card = document.createElement('div');
+                card.className = 'upgrade-card p-4 rounded-lg bg-gray-800 border-2 border-purple-600 hover:bg-gray-700 transition';
+                card.innerHTML = `
+                    <h4 class="text-lg font-bold text-yellow-300">${upgrade.name}</h4>
+                    <p class="text-sm text-gray-300">${upgrade.desc}</p>
+                    <p class="text-xs mt-2 text-purple-400">Rarity: ${upgrade.rarity}</p>
+                `;
+                card.onclick = () => selectUpgrade(upgrade);
+                container.appendChild(card);
+            });
+        }
+
+        function selectUpgrade(upgrade) {
+            upgrade.effect(player);
+            player.health = player.maxHealth; 
+            document.getElementById('upgradeSelection').classList.add('hidden');
+            startWave();
+        }
+
+        function endGame() {
+            gameOver = true;
+            isPaused = true;
+
+            document.getElementById('gameOverlay').classList.remove('hidden');
+            document.getElementById('upgradeSelection').classList.add('hidden');
+            document.getElementById('gameOverScreen').classList.remove('hidden');
+
+            document.getElementById('finalWave').textContent = wave;
+            document.getElementById('finalScore').textContent = score;
+        }
+
+        // --- EVENT LISTENERS ---
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'w' || e.key === 'a' || e.key === 's' || e.key === 'd' || e.key === 'W' || e.key === 'A' || e.key === 'S' || e.key === 'D') {
+                keys[e.key] = true;
+            }
+            if (e.key === 'Shift') {
+                e.preventDefault(); 
+                player.dash();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'w' || e.key === 'a' || e.key === 's' || e.key === 'd' || e.key === 'W' || e.key === 'A' || e.key === 'S' || e.key === 'D') {
+                keys[e.key] = false;
+            }
+        });
+
+        document.getElementById('selectRanged').onclick = () => initGame('ranged');
+        document.getElementById('selectMelee').onclick = () => initGame('melee');
+        document.getElementById('selectElemental').onclick = () => initGame('elemental');
+        
+        document.getElementById('restartButton').onclick = () => {
+             document.getElementById('gameOverScreen').classList.add('hidden');
+             document.getElementById('startScreen').classList.remove('hidden');
+             document.getElementById('gameOverlay').classList.remove('hidden');
+        };
+
+        startGame();
+    </script>
+</body>
+</html>
