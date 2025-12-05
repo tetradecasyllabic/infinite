@@ -331,6 +331,8 @@
             { id: 93, name: "Armor Plating II", desc: "+15 Armor", effect: p => p.armor += 15, rarity: 3 },
             { id: 94, name: "Homing II", desc: "Greatly improved projectile homing (Ranged/Elemental)", effect: p => p.homingStrength = (p.homingStrength || 0) + 0.05, rarity: 3, weaponFilter: ['ranged', 'elemental'] },
             { id: 95, name: "DOT Spread II", desc: "DOT spreads to 2 nearby targets on application", effect: p => p.dotSpreadTargets += 2, rarity: 3, weaponFilter: ['elemental'] },
+            { id: 96, name: "Mass Destruction", desc: "+5 Projectile Count (Shotgun effect)", effect: p => p.projectileCount += 5, rarity: 3, weaponFilter: ['ranged'] },
+
         ];
 
 
