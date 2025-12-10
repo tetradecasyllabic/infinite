@@ -289,7 +289,7 @@
             { id: 57, name: "Bullet Size I", desc: "+2 Projectile Radius", effect: p => p.projectileRadius += 2, rarity: 2, weaponFilter: ['ranged'] },
             { id: 58, name: "Ricochet I", desc: "Projectiles ricochet 1 time", effect: p => p.maxRicochets = Math.max(1, p.maxRicochets + 1), rarity: 2, weaponFilter: ['ranged'] },
             { id: 59, name: "Scatter Shot", desc: "+2 Projectiles, -20% Damage", effect: p => { p.projectileCount += 2; p.damage *= 0.8; }, rarity: 2, weaponFilter: ['ranged'] },
-            { id: 60, name: "Anti-Armor", desc: "Projectiles ignore 5 Enemy Armor", effect: p => p.armorPierce += 5, rarity: 3, weaponFilter: ['ranged'] },
+            { id: 60, name: "Anti-Armor", desc: "Projectiles ignore 5 Enemy Armor", effect: p => p.armorPierce -= 5, rarity: 3, weaponFilter: ['ranged'] },
             { id: 61, name: "Precision Rounds", desc: "Ignores movement speed penalties during attack", effect: p => p.precision = true, rarity: 2, weaponFilter: ['ranged'] },
             { id: 62, name: "Critical Burst", desc: "10% Chance to fire a second shot on Critical Hit", effect: p => p.critBurstChance += 0.1, rarity: 3, weaponFilter: ['ranged'] },
             { id: 63, name: "Range Focus II", desc: "+15% Weapon Range", effect: p => p.range *= 1.15, rarity: 1, weaponFilter: ['ranged'] },
